@@ -12,13 +12,46 @@ import os
 
 pygame.init()
 
-# Original image ratio: 35:54
-W, H = 630, 972
-
 FPS = 60
 
+MAX_W = 630
+MAX_H = 972
+
+IMAGE_PATH = "medusa.jpg"
+
+if not os.path.exists(IMAGE_PATH):
+    raise FileNotFoundError(
+        "medusa.jpeg not found! Put it beside main.py."
+    )
+
+# Load original image
+original = cv2.imread(IMAGE_PATH)
+
+if original is None:
+    raise ValueError("Unable to load medusa.jpeg")
+
+# ==========================================
+# 2. PRESERVE IMAGE ASPECT RATIO
+# ==========================================
+
+original_h, original_w = original.shape[:2]
+
+scale = min(
+    MAX_W / original_w,
+    MAX_H / original_h
+)
+
+W = max(1, int(original_w * scale))
+H = max(1, int(original_h * scale))
+
+original = cv2.resize(
+    original,
+    (W, H),
+    interpolation=cv2.INTER_AREA
+)
+
 screen = pygame.display.set_mode((W, H))
-pygame.display.set_caption("Medusa - Digital Painting")
+pygame.display.set_caption("Mom - Digital Painting")
 
 clock = pygame.time.Clock()
 
@@ -28,33 +61,9 @@ random.seed(7)
 np.random.seed(7)
 
 # ==========================================
-# 2. IMAGE SETTINGS
+# 3. IMAGE ENHANCEMENT
 # ==========================================
 
-IMAGE_PATH = "medusa.jpg"
-
-if not os.path.exists(IMAGE_PATH):
-    raise FileNotFoundError(
-        "medusa.jpg not found! Put it beside main.py."
-    )
-
-original = cv2.imread(IMAGE_PATH)
-
-if original is None:
-    raise ValueError("Unable to load medusa.jpg")
-
-# ==========================================
-# 3. PRESERVE ORIGINAL IMAGE
-# ==========================================
-
-# Resize without cropping or stretching
-original = cv2.resize(
-    original,
-    (W, H),
-    interpolation=cv2.INTER_AREA
-)
-
-# Slight color enhancement
 hsv = cv2.cvtColor(
     original,
     cv2.COLOR_BGR2HSV
@@ -64,7 +73,8 @@ h, s, v = cv2.split(hsv)
 
 s = np.clip(
     s.astype(np.float32) * 1.08,
-    0, 255
+    0,
+    255
 ).astype(np.uint8)
 
 hsv = cv2.merge((h, s, v))
@@ -74,7 +84,6 @@ enhanced = cv2.cvtColor(
     cv2.COLOR_HSV2BGR
 )
 
-# Preserve the original painting details
 rgb = cv2.cvtColor(
     enhanced,
     cv2.COLOR_BGR2RGB
@@ -106,7 +115,6 @@ edges = cv2.Canny(
     110
 )
 
-# Make sketch lines slightly thicker
 kernel = np.ones(
     (2, 2),
     np.uint8
@@ -143,10 +151,8 @@ QUOTE = (
     "\nBut She Called It Freedom."
 )
 
-# Center focus point
 FOCUS_REL = (0.50, 0.42)
 
-# Turquoise drawing colors (RGB)
 STOPS = [
     (100, 255, 210),
     (40, 235, 175),
@@ -263,12 +269,10 @@ for contour in contours:
         )
 
         segments.append({
-
             "points": part,
-
             "distance": distance
-
         })
+
 
 # Reveal from the center outward
 segments.sort(
@@ -296,9 +300,9 @@ for i in range(TWINKLES):
 
     stars.append({
 
-        "x": random.randint(15, W - 15),
+        "x": random.randint(15, max(15, W - 15)),
 
-        "y": random.randint(15, H - 15),
+        "y": random.randint(15, max(15, H - 15)),
 
         "phase": random.uniform(
             0,
@@ -383,7 +387,7 @@ def draw_quote(surface, elapsed):
 
     font = pygame.font.SysFont(
         "serif",
-        19,
+        max(14, int(W * 0.03)),
         italic=True
     )
 
@@ -398,7 +402,7 @@ def draw_quote(surface, elapsed):
         230 * ease_out(progress)
     )
 
-    # Subtle dark background behind text
+    # Dark background behind text
     overlay = pygame.Surface(
         (W, 65),
         pygame.SRCALPHA
@@ -544,14 +548,11 @@ while running:
             255 * ease_sine(fill_progress)
         )
 
-    # Draw the original full-color painting
     if fill_alpha > 0:
 
         color_layer = painting_surface.copy()
 
-        color_layer.set_alpha(
-            fill_alpha
-        )
+        color_layer.set_alpha(fill_alpha)
 
         screen.blit(
             color_layer,
@@ -559,7 +560,7 @@ while running:
         )
 
     # ======================================
-    # 3. REMOVE GREEN / CYAN SKETCH LINES
+    # 3. REMOVE SKETCH LINES
     # ======================================
 
     if elapsed < FILL_START:
@@ -583,14 +584,11 @@ while running:
 
         sketch_alpha = 0
 
-    # Draw sketch only while visible
     if sketch_alpha > 0:
 
         sketch_display = sketch_layer.copy()
 
-        sketch_display.set_alpha(
-            sketch_alpha
-        )
+        sketch_display.set_alpha(sketch_alpha)
 
         screen.blit(
             sketch_display,
